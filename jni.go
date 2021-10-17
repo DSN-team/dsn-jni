@@ -1,4 +1,4 @@
-package dsn_jni
+package main
 
 // #include <stdlib.h>
 // #include <stddef.h>
