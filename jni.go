@@ -150,6 +150,7 @@ func Java_com_dsnteam_dsn_CoreManager_runServer(env uintptr, _ uintptr, addressI
 	if env != 0 {
 		workingVM, _ = jni.Env(env).GetJavaVM()
 	}
+	core.UpdateUI = updateCall
 	core.RunServer(address)
 }
 
@@ -194,5 +195,4 @@ func updateCall(count int, userId int) {
 	env.CallStaticVoidMethodA(classInput, methodId, jni.Jvalue(count), jni.Jvalue(userId))
 	workingVM.DetachCurrentThread()
 	runtime.KeepAlive(bData)
-
 }
