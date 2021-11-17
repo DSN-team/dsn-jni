@@ -67,7 +67,7 @@ func Java_com_dsnteam_dsn_CoreManager_getProfilesNames(env uintptr, _ uintptr) (
 
 //export Java_com_dsnteam_dsn_CoreManager_getProfilePublicKey
 func Java_com_dsnteam_dsn_CoreManager_getProfilePublicKey(env uintptr, _ uintptr) uintptr {
-	friend := Friend{Username: currentProfile.Username, Address: currentProfile.Address, PublicKey: currentProfile.GetProfilePublicKey()}
+	friend := Friend{Username: currentProfile.ThisUser.Username, Address: currentProfile.ThisUser.Address, PublicKey: currentProfile.GetProfilePublicKey()}
 	b, err := json.Marshal(friend)
 	core.ErrHandler(err)
 	return jni.Env(env).NewString(string(b))
@@ -75,12 +75,12 @@ func Java_com_dsnteam_dsn_CoreManager_getProfilePublicKey(env uintptr, _ uintptr
 
 //export Java_com_dsnteam_dsn_CoreManager_getProfileName
 func Java_com_dsnteam_dsn_CoreManager_getProfileName(env uintptr, _ uintptr) uintptr {
-	return jni.Env(env).NewString(currentProfile.Username)
+	return jni.Env(env).NewString(currentProfile.ThisUser.Username)
 }
 
 //export Java_com_dsnteam_dsn_CoreManager_getProfileAddress
 func Java_com_dsnteam_dsn_CoreManager_getProfileAddress(env uintptr, _ uintptr) uintptr {
-	return jni.Env(env).NewString(currentProfile.Address)
+	return jni.Env(env).NewString(currentProfile.ThisUser.Address)
 }
 
 type Friend struct {
@@ -155,6 +155,17 @@ func Java_com_dsnteam_dsn_CoreManager_connectToFriend(env uintptr, _ uintptr, us
 	currentProfile.ConnectToFriend(userId)
 }
 
+//export Java_com_dsnteam_dsn_CoreManager_getFriendsRequests
+func Java_com_dsnteam_dsn_CoreManager_getFriendsRequests(env uintptr, _ uintptr) (usernames uintptr) {
+	//friends = getFriends()
+	dataType := jni.Env(env).FindClass("Ljava/lang/String;")
+	usernames = jni.Env(env).NewObjectArray(len(currentProfile.FriendRequests), dataType, 0)
+	for i := 0; i < len(currentProfile.FriendRequests); i++ {
+		jni.Env(env).SetObjectArrayElement(usernames, i, jni.Env(env).NewString(currentProfile.FriendRequests[i].Username))
+	}
+	return
+}
+
 //Инициализировать структуры и подключение
 
 //export Java_com_dsnteam_dsn_CoreManager_runServer
@@ -177,19 +188,20 @@ func Java_com_dsnteam_dsn_CoreManager_setCallBackBuffer(env uintptr, _ uintptr, 
 //export Java_com_dsnteam_dsn_CoreManager_writeBytes
 func Java_com_dsnteam_dsn_CoreManager_writeBytes(env uintptr, _ uintptr, inBuffer uintptr, lenIn int, userId int) {
 	log.Println("env write:", env)
-	defer runtime.KeepAlive(currentProfile.DataStrInput.Io)
+	defer runtime.KeepAlive(currentProfile.DataStrInput)
 	point, size := jni.Env(env).GetDirectBufferAddress(inBuffer), jni.Env(env).GetDirectBufferCapacity(inBuffer)
 
-	sh := (*reflect.SliceHeader)(unsafe.Pointer(&currentProfile.DataStrInput.Io))
+	sh := (*reflect.SliceHeader)(unsafe.Pointer(&currentProfile.DataStrInput))
 	sh.Data = uintptr(point)
 	sh.Len = lenIn
 	sh.Cap = size
 
 	currentProfile.WriteRequest(
 		userId,
-		core.BuildRequest(core.RequestData,
+		currentProfile.BuildDataRequest(core.RequestData,
 			uint64(lenIn),
-			currentProfile.DataStrInput.Io))
+			currentProfile.DataStrInput,
+			userId))
 }
 
 //Realisation for platform
@@ -208,7 +220,7 @@ func updateCall(count int, userId int) {
 	sh.Cap = callBackBufferCap
 	sh.Len = callBackBufferCap
 	println("buffer pointer:", callBackBufferPtr)
-	copy(bData, currentProfile.DataStrOutput.Io)
+	copy(bData, currentProfile.DataStrOutput)
 	println("buffer write done")
 	env.CallStaticVoidMethodA(classInput, methodId, jni.Jvalue(count), jni.Jvalue(userId))
 	workingVM.DetachCurrentThread()
