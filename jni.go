@@ -5,6 +5,7 @@ package main
 // #include <stdint.h>
 import "C"
 import (
+	"encoding/json"
 	"fmt"
 	"github.com/ClarkGuan/jni"
 	"github.com/DSN-team/core"
@@ -66,7 +67,10 @@ func Java_com_dsnteam_dsn_CoreManager_getProfilesNames(env uintptr, _ uintptr) (
 
 //export Java_com_dsnteam_dsn_CoreManager_getProfilePublicKey
 func Java_com_dsnteam_dsn_CoreManager_getProfilePublicKey(env uintptr, _ uintptr) uintptr {
-	return jni.Env(env).NewString(currentProfile.GetProfilePublicKey())
+	friend := Friend{Username: currentProfile.Username, Address: currentProfile.Address, PublicKey: currentProfile.GetProfilePublicKey()}
+	b, err := json.Marshal(friend)
+	core.ErrHandler(err)
+	return jni.Env(env).NewString(string(b))
 }
 
 //export Java_com_dsnteam_dsn_CoreManager_getProfileName
@@ -79,10 +83,19 @@ func Java_com_dsnteam_dsn_CoreManager_getProfileAddress(env uintptr, _ uintptr) 
 	return jni.Env(env).NewString(currentProfile.Address)
 }
 
+type Friend struct {
+	Username  string
+	Address   string
+	PublicKey string
+}
+
 //export Java_com_dsnteam_dsn_CoreManager_addFriend
-func Java_com_dsnteam_dsn_CoreManager_addFriend(env uintptr, _ uintptr, usernameIn, addressIn, publicKeyIn uintptr) {
-	username, address, publicKey := string(jni.Env(env).GetStringUTF(usernameIn)), string(jni.Env(env).GetStringUTF(addressIn)), string(jni.Env(env).GetStringUTF(publicKeyIn))
-	currentProfile.AddFriend(username, address, publicKey)
+func Java_com_dsnteam_dsn_CoreManager_addFriend(env uintptr, _ uintptr, dataIn uintptr) {
+	data := string(jni.Env(env).GetStringUTF(dataIn))
+	var friend Friend
+	err := json.Unmarshal([]byte(data), &friend)
+	core.ErrHandler(err)
+	currentProfile.AddFriend(friend.Username, friend.Address, friend.PublicKey)
 }
 
 //export Java_com_dsnteam_dsn_CoreManager_loadFriends
