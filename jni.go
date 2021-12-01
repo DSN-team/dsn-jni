@@ -9,6 +9,7 @@ import (
 	"fmt"
 	"github.com/ClarkGuan/jni"
 	"github.com/DSN-team/core"
+	utils2 "github.com/DSN-team/core/utils"
 	"log"
 	"reflect"
 	"runtime"
@@ -50,7 +51,7 @@ func Java_com_dsnteam_dsn_CoreManager_loadProfiles(env uintptr, _ uintptr) int {
 func Java_com_dsnteam_dsn_CoreManager_getProfilesIds(env uintptr, _ uintptr) (ids uintptr) {
 	ids = jni.Env(env).NewIntArray(len(core.Profiles))
 	for i := 0; i < len(core.Profiles); i++ {
-		jni.Env(env).SetIntArrayElement(ids, i, core.Profiles[i].Id)
+		jni.Env(env).SetIntArrayElement(ids, i, int(core.Profiles[i].ID))
 	}
 	return
 }
@@ -67,7 +68,7 @@ func Java_com_dsnteam_dsn_CoreManager_getProfilesNames(env uintptr, _ uintptr) (
 
 //export Java_com_dsnteam_dsn_CoreManager_getProfilePublicKey
 func Java_com_dsnteam_dsn_CoreManager_getProfilePublicKey(env uintptr, _ uintptr) uintptr {
-	friend := Friend{Username: currentProfile.ThisUser.Username, Address: currentProfile.ThisUser.Address, PublicKey: currentProfile.GetProfilePublicKey()}
+	friend := Friend{Username: currentProfile.Username, Address: currentProfile.Address, PublicKey: currentProfile.GetProfilePublicKey()}
 	b, err := json.Marshal(friend)
 	core.ErrHandler(err)
 	return jni.Env(env).NewString(string(b))
@@ -75,12 +76,12 @@ func Java_com_dsnteam_dsn_CoreManager_getProfilePublicKey(env uintptr, _ uintptr
 
 //export Java_com_dsnteam_dsn_CoreManager_getProfileName
 func Java_com_dsnteam_dsn_CoreManager_getProfileName(env uintptr, _ uintptr) uintptr {
-	return jni.Env(env).NewString(currentProfile.ThisUser.Username)
+	return jni.Env(env).NewString(currentProfile.Username)
 }
 
 //export Java_com_dsnteam_dsn_CoreManager_getProfileAddress
 func Java_com_dsnteam_dsn_CoreManager_getProfileAddress(env uintptr, _ uintptr) uintptr {
-	return jni.Env(env).NewString(currentProfile.ThisUser.Address)
+	return jni.Env(env).NewString(currentProfile.Address)
 }
 
 type Friend struct {
@@ -107,7 +108,7 @@ func Java_com_dsnteam_dsn_CoreManager_loadFriends(env uintptr, _ uintptr) int {
 func Java_com_dsnteam_dsn_CoreManager_getFriendsIds(env uintptr, _ uintptr) (ids uintptr) {
 	ids = jni.Env(env).NewIntArray(len(currentProfile.Friends))
 	for i := 0; i < len(currentProfile.Friends); i++ {
-		jni.Env(env).SetIntArrayElement(ids, i, currentProfile.Friends[i].Id)
+		jni.Env(env).SetIntArrayElement(ids, i, int(currentProfile.Friends[i].ID))
 	}
 	return
 }
@@ -140,7 +141,7 @@ func Java_com_dsnteam_dsn_CoreManager_getFriendsPublicKeys(env uintptr, _ uintpt
 	dataType := jni.Env(env).FindClass("Ljava/lang/String;")
 	publicKey = jni.Env(env).NewObjectArray(len(currentProfile.Friends), dataType, 0)
 	for i := 0; i < len(currentProfile.Friends); i++ {
-		jni.Env(env).SetObjectArrayElement(publicKey, i, jni.Env(env).NewString(core.EncPublicKey(core.MarshalPublicKey(currentProfile.Friends[i].PublicKey))))
+		jni.Env(env).SetObjectArrayElement(publicKey, i, jni.Env(env).NewString(core.EncodeKey(core.MarshalPublicKey(currentProfile.Friends[i].PublicKey))))
 	}
 	return
 }
@@ -157,11 +158,12 @@ func Java_com_dsnteam_dsn_CoreManager_connectToFriend(env uintptr, _ uintptr, us
 
 //export Java_com_dsnteam_dsn_CoreManager_getFriendsRequests
 func Java_com_dsnteam_dsn_CoreManager_getFriendsRequests(env uintptr, _ uintptr) (usernames uintptr) {
-	//friends = getFriends()
+	currentProfile.FriendRequests = currentProfile.GetFriendRequests()
 	dataType := jni.Env(env).FindClass("Ljava/lang/String;")
 	usernames = jni.Env(env).NewObjectArray(len(currentProfile.FriendRequests), dataType, 0)
 	for i := 0; i < len(currentProfile.FriendRequests); i++ {
-		jni.Env(env).SetObjectArrayElement(usernames, i, jni.Env(env).NewString(currentProfile.FriendRequests[i].Username))
+		user := currentProfile.GetUser(currentProfile.FriendRequests[i].UserID)
+		jni.Env(env).SetObjectArrayElement(usernames, i, jni.Env(env).NewString(user.Username))
 	}
 	return
 }
@@ -196,12 +198,12 @@ func Java_com_dsnteam_dsn_CoreManager_writeBytes(env uintptr, _ uintptr, inBuffe
 	sh.Len = lenIn
 	sh.Cap = size
 
-	currentProfile.WriteRequest(
-		userId,
-		currentProfile.BuildDataRequest(core.RequestData,
-			uint64(lenIn),
-			currentProfile.DataStrInput,
-			userId))
+	userPos, _ := currentProfile.FriendsIDXs.Load(uint(userId))
+
+	dataMessageEncrypted := currentProfile.BuildDataMessage(currentProfile.DataStrInput, uint(userId))
+	request := core.Request{RequestType: utils2.RequestData, PublicKey: core.MarshalPublicKey(&currentProfile.PrivateKey.PublicKey), Data: dataMessageEncrypted}
+
+	currentProfile.WriteRequest(currentProfile.Friends[userPos.(int)], request)
 }
 
 //Realisation for platform
