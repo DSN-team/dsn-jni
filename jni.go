@@ -213,10 +213,10 @@ func Java_com_dsnteam_dsn_CoreManager_connectToFriend(env uintptr, _ uintptr, us
 
 //export Java_com_dsnteam_dsn_CoreManager_getFriendsRequestsIn
 func Java_com_dsnteam_dsn_CoreManager_getFriendsRequestsIn(env uintptr, _ uintptr) (usernames uintptr) {
-	currentProfile.LoadFriendsRequestsIn()
+	size := currentProfile.LoadFriendsRequestsIn()
 	dataType := jni.Env(env).FindClass("Ljava/lang/String;")
-	usernames = jni.Env(env).NewObjectArray(len(currentProfile.FriendRequestsIn), dataType, 0)
-	for i := 0; i < len(currentProfile.FriendRequestsIn); i++ {
+	usernames = jni.Env(env).NewObjectArray(size, dataType, 0)
+	for i := 0; i < size; i++ {
 		user := currentProfile.GetUser(currentProfile.FriendRequestsIn[i].UserID)
 		jni.Env(env).SetObjectArrayElement(usernames, i, jni.Env(env).NewString(user.Username))
 	}
@@ -225,10 +225,10 @@ func Java_com_dsnteam_dsn_CoreManager_getFriendsRequestsIn(env uintptr, _ uintpt
 
 //export Java_com_dsnteam_dsn_CoreManager_getFriendsRequestsOut
 func Java_com_dsnteam_dsn_CoreManager_getFriendsRequestsOut(env uintptr, _ uintptr) (usernames uintptr) {
-	currentProfile.LoadFriendsRequestsOut()
+	size := currentProfile.LoadFriendsRequestsOut()
 	dataType := jni.Env(env).FindClass("Ljava/lang/String;")
-	usernames = jni.Env(env).NewObjectArray(len(currentProfile.FriendRequestsOut), dataType, 0)
-	for i := 0; i < len(currentProfile.FriendRequestsOut); i++ {
+	usernames = jni.Env(env).NewObjectArray(size, dataType, 0)
+	for i := 0; i < size; i++ {
 		user := currentProfile.GetUser(currentProfile.FriendRequestsOut[i].UserID)
 		jni.Env(env).SetObjectArrayElement(usernames, i, jni.Env(env).NewString(user.Username))
 	}
@@ -238,19 +238,20 @@ func Java_com_dsnteam_dsn_CoreManager_getFriendsRequestsOut(env uintptr, _ uintp
 //export Java_com_dsnteam_dsn_CoreManager_acceptFriendRequest
 func Java_com_dsnteam_dsn_CoreManager_acceptFriendRequest(env uintptr, _ uintptr, pos int) {
 	currentProfile.AcceptFriendRequest(&currentProfile.FriendRequestsIn[pos])
-	currentProfile.LoadFriendsRequestsIn()
+	currentProfile.AnswerFindFriendRequest(currentProfile.FriendRequestsIn[pos])
+	//currentProfile.LoadFriendsRequestsIn()
 }
 
 //export Java_com_dsnteam_dsn_CoreManager_rejectFriendRequest
 func Java_com_dsnteam_dsn_CoreManager_rejectFriendRequest(env uintptr, _ uintptr, pos int) {
 	currentProfile.RejectFriendRequest(&currentProfile.FriendRequestsIn[pos])
-	currentProfile.LoadFriendsRequestsIn()
+	//currentProfile.LoadFriendsRequestsIn()
 }
 
 //export Java_com_dsnteam_dsn_CoreManager_deleteFriendRequest
 func Java_com_dsnteam_dsn_CoreManager_deleteFriendRequest(env uintptr, _ uintptr, pos int) {
 	currentProfile.DeleteFriendRequest(&currentProfile.FriendRequestsOut[pos])
-	currentProfile.LoadFriendsRequestsOut()
+	//currentProfile.LoadFriendsRequestsOut()
 }
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////

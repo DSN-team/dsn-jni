@@ -4,7 +4,7 @@ go 1.17
 
 require (
 	github.com/ClarkGuan/jni v0.0.0-20200615140459-56a06808b778
-	github.com/DSN-team/core v0.0.0-20211205142123-16636ddf941a
+	github.com/DSN-team/core v0.0.0-20211208134212-164f7f634bc9
 )
 
 require (
